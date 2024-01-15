@@ -29,7 +29,7 @@
 #include <hdl_graph_slam/ScanMatchingStatus.h>
 
 namespace hdl_graph_slam {
-
+///@class 前端激光里程计
 class ScanMatchingOdometryNodelet : public nodelet::Nodelet {
 public:
   typedef pcl::PointXYZI PointT;
@@ -117,7 +117,7 @@ private:
 
     pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
     pcl::fromROSMsg(*cloud_msg, *cloud);
-
+    /// 获取前端配准位姿
     Eigen::Matrix4f pose = matching(cloud_msg->header.stamp, cloud);
     publish_odometry(cloud_msg->header.stamp, cloud_msg->header.frame_id, pose);
 
@@ -164,6 +164,7 @@ private:
    */
   Eigen::Matrix4f matching(const ros::Time& stamp, const pcl::PointCloud<PointT>::ConstPtr& cloud) {
     if(!keyframe) {
+      /// 初始化
       prev_time = ros::Time();
       prev_trans.setIdentity();
       keyframe_pose.setIdentity();

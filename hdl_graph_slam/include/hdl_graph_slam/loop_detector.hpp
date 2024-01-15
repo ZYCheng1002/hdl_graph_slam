@@ -78,6 +78,7 @@ private:
    * @param new_keyframe   loop end keyframe
    * @return loop candidates
    */
+   /// 遍历可能发生的回环
   std::vector<KeyFrame::Ptr> find_candidates(const std::vector<KeyFrame::Ptr>& keyframes, const KeyFrame::Ptr& new_keyframe) const {
     // too close to the last registered loop edge
     if(new_keyframe->accum_distance - last_edge_accum_distance < distance_from_last_edge_thresh) {

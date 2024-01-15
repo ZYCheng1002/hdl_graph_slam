@@ -563,8 +563,10 @@ private:
     }
 
     // loop detection
+    /// 回环检测
     std::vector<Loop::Ptr> loops = loop_detector->detect(keyframes, new_keyframes, *graph_slam);
     for(const auto& loop : loops) {
+      /// 存在回环加入全局优化中
       Eigen::Isometry3d relpose(loop->relative_pose.cast<double>());
       Eigen::MatrixXd information_matrix = inf_calclator->calc_information_matrix(loop->key1->cloud, loop->key2->cloud, relpose);
       auto edge = graph_slam->add_se3_edge(loop->key1->node, loop->key2->node, relpose, information_matrix);
