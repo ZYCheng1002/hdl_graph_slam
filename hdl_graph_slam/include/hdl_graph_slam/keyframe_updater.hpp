@@ -4,6 +4,7 @@
 #define KEYFRAME_UPDATER_HPP
 
 #include <ros/ros.h>
+
 #include <Eigen/Dense>
 
 namespace hdl_graph_slam {
@@ -12,7 +13,7 @@ namespace hdl_graph_slam {
  * @brief this class decides if a new frame should be registered to the pose graph as a keyframe
  */
 class KeyframeUpdater {
-public:
+ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /**
@@ -27,28 +28,25 @@ public:
   }
 
   /**
-   * @brief decide if a new frame should be registered to the graph
-   * @param pose  pose of the frame
-   * @return  if true, the frame should be registered
+   * @brief 关键帧判断
+   * @param pose 位姿
    */
   bool update(const Eigen::Isometry3d& pose) {
-    // first frame is always registered to the graph
-    if(is_first) {
+    /// 首帧直接是关键帧
+    if (is_first) {
       is_first = false;
       prev_keypose = pose;
       return true;
     }
-
-    // calculate the delta transformation from the previous keyframe
+    /// 上一关键帧到当前关键帧的相对变化量
     Eigen::Isometry3d delta = prev_keypose.inverse() * pose;
-    double dx = delta.translation().norm();
-    double da = Eigen::AngleAxisd(delta.linear()).angle();
+    double dx = delta.translation().norm();                 // 位移变化量
+    double da = Eigen::AngleAxisd(delta.linear()).angle();  // 角度变化量
 
-    // too close to the previous frame
-    if(dx < keyframe_delta_trans && da < keyframe_delta_angle) {
+    /// 变化太小不作为关键帧
+    if (dx < keyframe_delta_trans && da < keyframe_delta_angle) {
       return false;
     }
-
     accum_distance += dx;
     prev_keypose = pose;
     return true;
@@ -58,11 +56,9 @@ public:
    * @brief the last keyframe's accumulated distance from the first keyframe
    * @return accumulated distance
    */
-  double get_accum_distance() const {
-    return accum_distance;
-  }
+  double get_accum_distance() const { return accum_distance; }
 
-private:
+ private:
   // parameters
   double keyframe_delta_trans;  //
   double keyframe_delta_angle;  //
