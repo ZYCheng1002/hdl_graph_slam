@@ -153,4 +153,14 @@
   </node>
 
   <node pkg="hdl_graph_slam" type="map2odom_publisher.py" name="map2odom_publisher" />
+
+  <arg name="rviz" default="true" />
+  <rosparam command="load" file="$(find hdl_graph_slam)/config/robosense.yaml" />
+
+   <node pkg="nodelet" type="nodelet" name="hdl_lio_nodelet" args="load hdl_graph_slam/FrontLioNodelet $(arg nodelet_manager)" />
+
+  <group if="$(arg rviz)">
+  <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find hdl_graph_slam)/rviz/loam_livox.rviz" />
+  </group>
+
 </launch>

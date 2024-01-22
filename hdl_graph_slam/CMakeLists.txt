@@ -11,53 +11,13 @@ else()
   set(CMAKE_CXX_FLAGS "-std=c++14 -msse -msse2 -msse3 -msse4 -msse4.1 -msse4.2")
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(cmake/package.cmake)
 
+add_definitions(-DROOT_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
 # pcl 1.7 causes a segfault when it is built with debug mode
 set(CMAKE_BUILD_TYPE "RELEASE")
 
-find_package(catkin REQUIRED COMPONENTS
-  fast_gicp
-  geodesy
-  geometry_msgs
-  interactive_markers
-  message_generation
-  ndt_omp
-  nmea_msgs
-  pcl_ros
-  roscpp
-  rospy
-  sensor_msgs
-  std_msgs
-  tf_conversions
-)
 catkin_python_setup()
-
-find_package(PCL REQUIRED)
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
-
-message(STATUS "PCL_INCLUDE_DIRS:" ${PCL_INCLUDE_DIRS})
-message(STATUS "PCL_LIBRARY_DIRS:" ${PCL_LIBRARY_DIRS})
-message(STATUS "PCL_DEFINITIONS:" ${PCL_DEFINITIONS})
-
-find_package(G2O REQUIRED)
-include_directories(SYSTEM ${G2O_INCLUDE_DIR} ${G2O_INCLUDE_DIRS})
-link_directories(${G2O_LIBRARY_DIRS})
-# link_libraries(${G2O_LIBRARIES})
-
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
-
-find_library(VGICP_CUDA_FOUND NAMES fast_vgicp_cuda)
-message(STATUS "VGICP_CUDA_FOUND:" ${VGICP_CUDA_FOUND})
-if(VGICP_CUDA_FOUND)
-  add_definitions(-DUSE_VGICP_CUDA)
-endif()
 
 ########################
 ## message generation ##
@@ -65,6 +25,9 @@ endif()
 add_message_files(FILES
   FloorCoeffs.msg
   ScanMatchingStatus.msg
+  CustomMsg.msg
+  CustomPoint.msg
+  Pose6D.msg
 )
 
 add_service_files(FILES
@@ -95,10 +58,12 @@ catkin_package(
 ###########
 ## Build ##
 ###########
+include_directories(/home/idriver/slam_dai/hdl_ws/devel/include)
 include_directories(include)
 include_directories(
   ${PCL_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  src
 )
 
 # nodelets
@@ -140,16 +105,18 @@ add_library(hdl_graph_slam_nodelet
 target_link_libraries(hdl_graph_slam_nodelet
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
-  ${G2O_TYPES_DATA}
-  ${G2O_CORE_LIBRARY}
-  ${G2O_STUFF_LIBRARY}
-  ${G2O_SOLVER_PCG}
-  ${G2O_SOLVER_CSPARSE}   # be aware of that CSPARSE is released under LGPL
-  ${G2O_SOLVER_CHOLMOD}   # be aware of that cholmod is released under GPL
-  ${G2O_TYPES_SLAM3D}
-  ${G2O_TYPES_SLAM3D_ADDONS}
+  ${G2O_LIBS}
 )
 add_dependencies(hdl_graph_slam_nodelet ${PROJECT_NAME}_gencpp)
+
+add_library(hdl_lio_nodelet
+        apps/front_lio_nodelet.cpp
+        src/preprocess.cpp
+        include/ikd-Tree/ikd_Tree.cpp
+        )
+link_libraries(hdl_lio_nodelet
+        ${catkin_LIBRARIES} ${PCL_LIBRARIES}
+        )
 
 catkin_install_python(
   PROGRAMS
@@ -168,6 +135,7 @@ install(TARGETS
   floor_detection_nodelet
   scan_matching_odometry_nodelet
   hdl_graph_slam_nodelet
+  hdl_lio_nodelet
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 
 install(DIRECTORY include/
