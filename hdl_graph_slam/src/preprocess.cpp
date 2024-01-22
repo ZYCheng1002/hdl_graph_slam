@@ -1,5 +1,5 @@
 #include "preprocess.h"
-
+#define PCL_NO_PRECOMPILE
 #define RETURN0 0x00
 #define RETURN0AND1 0x10
 
@@ -255,7 +255,9 @@ void Preprocess::velodyne_handler(const sensor_msgs::PointCloud2::ConstPtr& msg)
   pl_full.clear();
 
   pcl::PointCloud<velodyne_ros::Point> pl_orig;
+  pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
   pcl::fromROSMsg(*msg, pl_orig);
+  pcl::console::setVerbosityLevel(pcl::console::L_WARN);
   int plsize = pl_orig.points.size();
   if (plsize == 0) return;
   pl_surf.reserve(plsize);
