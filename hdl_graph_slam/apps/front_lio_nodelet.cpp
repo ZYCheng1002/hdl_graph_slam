@@ -6,10 +6,7 @@
 #include <hdl_graph_slam/ScanMatchingStatus.h>
 #include <nav_msgs/Odometry.h>
 #include <nodelet/nodelet.h>
-#include <pcl/filters/approximate_voxel_grid.h>
-#include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl_ros/point_cloud.h>
 #include <pluginlib/class_list_macros.h>
 #include <ros/duration.h>
 #include <ros/ros.h>
@@ -24,31 +21,18 @@
 #include <hdl_graph_slam/ros_utils.hpp>
 #include <iostream>
 #include <memory>
-#include <geometry_msgs/Vector3.h>
 #include <ikd-Tree/ikd_Tree.h>
-#include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <omp.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
 #include <so3_math.h>
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_datatypes.h>
 #include <unistd.h>
-#include <visualization_msgs/Marker.h>
 
 #include <Eigen/Core>
 #include <cmath>
-#include <csignal>
-#include <fstream>
-#include <memory>
 #include <mutex>
-#include <thread>
 
 #include "IMU_Processing.hpp"
 #include "preprocess.h"
@@ -129,21 +113,15 @@ class FrontLioNodelet : public nodelet::Nodelet {
     cout << "p_pre->lidar_type " << p_pre->lidar_type << endl;
     published_odom_topic = private_nh.param<std::string>("published_odom_topic", "/odom");
     odom_frame_id = private_nh.param<std::string>("odom_frame_id", "odom");
+    base_link_frame = private_nh.param<std::string>("base_link_frame", "");
   }
 
   void RosSubPub() {
     sub_pcl =
-        p_pre->lidar_type == AVIA
-            ? nh.subscribe<hdl_graph_slam::CustomMsg>(lid_topic, 200000,
-                                                [&](const hdl_graph_slam::CustomMsg::ConstPtr& msg) { livox_pcl_cbk(msg); })
-            : nh.subscribe<sensor_msgs::PointCloud2>(
+        nh.subscribe<sensor_msgs::PointCloud2>(
                   lid_topic, 200000, [&](const sensor_msgs::PointCloud2::ConstPtr& msg) { standard_pcl_cbk(msg); });
     sub_imu =
         nh.subscribe<sensor_msgs::Imu>(imu_topic, 200000, [&](const sensor_msgs::Imu::ConstPtr& msg) { imu_cbk(msg); });
-    pubLaserCloudFull = nh.advertise<sensor_msgs::PointCloud2>("/filtered_points", 100000);
-    pubLaserCloudFull_body = nh.advertise<sensor_msgs::PointCloud2>("/cloud_registered_body", 100000);
-    pubLaserCloudEffect = nh.advertise<sensor_msgs::PointCloud2>("/cloud_effected", 100000);
-    pubLaserCloudMap = nh.advertise<sensor_msgs::PointCloud2>("/Laser_map", 100000);
     odom_pub = nh.advertise<nav_msgs::Odometry>(published_odom_topic, 32);
   }
 
@@ -381,37 +359,6 @@ class FrontLioNodelet : public nodelet::Nodelet {
 
   double timediff_lidar_wrt_imu = 0.0;
   bool timediff_set_flg = false;
-  /// livox 固态雷达的回调函数
-  void livox_pcl_cbk(const hdl_graph_slam::CustomMsg::ConstPtr& msg) {
-    mtx_buffer.lock();
-    double preprocess_start_time = omp_get_wtime();
-    scan_count++;
-    if (msg->header.stamp.toSec() < last_timestamp_lidar) {
-      ROS_ERROR("lidar loop back, clear buffer");
-      lidar_buffer.clear();
-    }
-    last_timestamp_lidar = msg->header.stamp.toSec();
-
-    if (!time_sync_en && abs(last_timestamp_imu - last_timestamp_lidar) > 10.0 && !imu_buffer.empty() &&
-        !lidar_buffer.empty()) {
-      printf("IMU and LiDAR not Synced, IMU time: %lf, lidar header time: %lf \n", last_timestamp_imu,
-             last_timestamp_lidar);
-    }
-
-    if (time_sync_en && !timediff_set_flg && abs(last_timestamp_lidar - last_timestamp_imu) > 1 &&
-        !imu_buffer.empty()) {
-      timediff_set_flg = true;
-      timediff_lidar_wrt_imu = last_timestamp_lidar + 0.1 - last_timestamp_imu;
-      printf("Self sync IMU and LiDAR, time diff is %.10lf \n", timediff_lidar_wrt_imu);
-    }
-
-    PointCloudXYZI::Ptr ptr(new PointCloudXYZI());
-    p_pre->process(msg, ptr);
-    lidar_buffer.push_back(ptr);
-    time_buffer.push_back(last_timestamp_lidar);
-    mtx_buffer.unlock();
-    sig_buffer.notify_all();
-  }
 
   /// imu回调函数
   void imu_cbk(const sensor_msgs::Imu::ConstPtr& msg_in) {
@@ -534,51 +481,6 @@ class FrontLioNodelet : public nodelet::Nodelet {
     add_point_size = PointToAdd.size() + PointNoNeedDownsample.size();
   }
 
-  void publish_lidar_frame() {
-      PointCloudXYZI::Ptr laserCloudFullRes(feats_undistort);
-      sensor_msgs::PointCloud2 laser_cloud_msg;
-      pcl::toROSMsg(*laserCloudFullRes, laser_cloud_msg);
-      laser_cloud_msg.header.stamp = ros::Time().fromSec(lidar_end_time);
-      laser_cloud_msg.header.frame_id = "";
-      pubLaserCloudFull.publish(laser_cloud_msg);
-  }
-
-  void publish_frame_body(const ros::Publisher& pubLaserCloudFull_body) {
-    int size = feats_undistort->points.size();
-    PointCloudXYZI::Ptr laserCloudIMUBody(new PointCloudXYZI(size, 1));
-
-    for (int i = 0; i < size; i++) {
-      RGBpointBodyLidarToIMU(&feats_undistort->points[i], &laserCloudIMUBody->points[i]);
-    }
-
-    sensor_msgs::PointCloud2 laserCloudmsg;
-    pcl::toROSMsg(*laserCloudIMUBody, laserCloudmsg);
-    laserCloudmsg.header.stamp = ros::Time().fromSec(lidar_end_time);
-    laserCloudmsg.header.frame_id = "body";
-    pubLaserCloudFull_body.publish(laserCloudmsg);
-    publish_count -= PUBFRAME_PERIOD;
-  }
-
-  void publish_effect_world(const ros::Publisher& pubLaserCloudEffect) {
-    PointCloudXYZI::Ptr laserCloudWorld(new PointCloudXYZI(effct_feat_num, 1));
-    for (int i = 0; i < effct_feat_num; i++) {
-      RGBpointBodyToWorld(&laserCloudOri->points[i], &laserCloudWorld->points[i]);
-    }
-    sensor_msgs::PointCloud2 laserCloudFullRes3;
-    pcl::toROSMsg(*laserCloudWorld, laserCloudFullRes3);
-    laserCloudFullRes3.header.stamp = ros::Time().fromSec(lidar_end_time);
-    laserCloudFullRes3.header.frame_id = "camera_init";
-    pubLaserCloudEffect.publish(laserCloudFullRes3);
-  }
-
-  void publish_map(const ros::Publisher& pubLaserCloudMap) {
-    sensor_msgs::PointCloud2 laserCloudMap;
-    pcl::toROSMsg(*featsFromMap, laserCloudMap);
-    laserCloudMap.header.stamp = ros::Time().fromSec(lidar_end_time);
-    laserCloudMap.header.frame_id = "camera_init";
-    pubLaserCloudMap.publish(laserCloudMap);
-  }
-
   template <typename T>
   void set_posestamp(T& out) {
     out.pose.position.x = state_point.pos(0);
@@ -592,7 +494,6 @@ class FrontLioNodelet : public nodelet::Nodelet {
 
   void publish_msgs() {
     odomAftMapped.header.frame_id = odom_frame_id;
-    odomAftMapped.child_frame_id = "";
     odomAftMapped.header.stamp = ros::Time().fromSec(lidar_end_time);  // ros::Time().fromSec(lidar_end_time);
     set_posestamp(odomAftMapped.pose);
     // pubOdomAftMapped.publish(odomAftMapped);
@@ -608,27 +509,6 @@ class FrontLioNodelet : public nodelet::Nodelet {
     }
     /// body坐标系
     odom_pub.publish(odomAftMapped);
-    /// lidar运动补偿后的点云
-    PointCloudXYZI::Ptr laserCloudFullRes(feats_undistort);
-    sensor_msgs::PointCloud2 laser_cloud_msg;
-    pcl::toROSMsg(*laserCloudFullRes, laser_cloud_msg);
-    laser_cloud_msg.header.stamp = ros::Time().fromSec(lidar_end_time);
-    laser_cloud_msg.header.frame_id = "base_link";
-    pubLaserCloudFull.publish(laser_cloud_msg);
-  }
-
-  void publish_path(const ros::Publisher pubPath) {
-    set_posestamp(msg_body_pose);
-    msg_body_pose.header.stamp = ros::Time().fromSec(lidar_end_time);
-    msg_body_pose.header.frame_id = "camera_init";
-
-    /*** if path is too large, the rvis will crash ***/
-    static int jjj = 0;
-    jjj++;
-    if (jjj % 10 == 0) {
-      path.poses.push_back(msg_body_pose);
-      pubPath.publish(path);
-    }
   }
 
   /// 激光匹配+Correct中H矩阵求解
@@ -800,7 +680,7 @@ class FrontLioNodelet : public nodelet::Nodelet {
   V3D Lidar_T_wrt_IMU;
   M3D Lidar_R_wrt_IMU;
 
-  /*** EKF inputs and output ***/
+  /// EKF inputs and output
   MeasureGroup Measures;
   esekfom::esekf<state_ikfom, 12, input_ikfom> kf;
   state_ikfom state_point;
@@ -814,17 +694,13 @@ class FrontLioNodelet : public nodelet::Nodelet {
   shared_ptr<Preprocess> p_pre;
   shared_ptr<ImuProcess> p_imu;
 
-  /// topic name
+  /// string name
   std::string published_odom_topic;
   std::string odom_frame_id;
+  std::string base_link_frame;
 
   /// ros pub
-  ros::Publisher pubLaserCloudFull;
-  ros::Publisher pubLaserCloudFull_body;
-  ros::Publisher pubLaserCloudEffect;
-  ros::Publisher pubLaserCloudMap;
   ros::Publisher pubOdomAftMapped;
-  ros::Publisher pubPath;
   ros::Publisher odom_pub;
 
   /// ros sub

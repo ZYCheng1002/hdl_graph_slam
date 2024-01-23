@@ -122,6 +122,7 @@ private:
       tf_listener.lookupTransform(base_link_frame, src_cloud->header.frame_id, ros::Time(0), transform);
 
       pcl::PointCloud<PointT>::Ptr transformed(new pcl::PointCloud<PointT>());
+      /// 转到body坐标系
       pcl_ros::transformPointCloud(*src_cloud, *transformed, transform);
       transformed->header.frame_id = base_link_frame;
       transformed->header.stamp = src_cloud->header.stamp;
