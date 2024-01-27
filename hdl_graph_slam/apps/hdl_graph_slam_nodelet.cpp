@@ -618,9 +618,7 @@ class HdlGraphSlamNodelet : public nodelet::Nodelet {
 
     /// 执行图优化
     int num_iterations = private_nh.param<int>("g2o_solver_num_iterations", 1024);
-    if (!loops.empty()) {
-      graph_slam->optimize(num_iterations);
-    }
+    graph_slam->optimize(num_iterations);
 
 
     // publish tf
