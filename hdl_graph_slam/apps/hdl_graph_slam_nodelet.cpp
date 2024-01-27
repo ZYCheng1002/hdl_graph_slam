@@ -53,6 +53,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include "hdl_graph_slam/degenerate_detection.h"
 
 namespace hdl_graph_slam {
 

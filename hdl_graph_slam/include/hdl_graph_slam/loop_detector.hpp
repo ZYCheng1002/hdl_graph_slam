@@ -85,7 +85,7 @@ class LoopDetector {
     candidates.reserve(32);
 
     for (const auto& k : keyframes) {
-      /// 跳过累积距离过端的
+      /// 跳过累积距离过短的
       if (new_keyframe->accum_distance - k->accum_distance < accum_distance_thresh) {
         continue;
       }

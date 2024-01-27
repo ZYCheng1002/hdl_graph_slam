@@ -51,6 +51,9 @@ struct KeyFrame {
   boost::optional<Eigen::Quaterniond> orientation;  // 陀螺仪旋转
 
   g2o::VertexSE3* node;  // node instance
+
+  bool degenerate = false;  //是否退化
+  Eigen::Matrix<double, 6, 6> cov  = Eigen::Matrix<double, 6, 6>::Identity();
 };
 
 /**

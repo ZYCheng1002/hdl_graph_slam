@@ -93,7 +93,7 @@
     <param name="fix_first_node_stddev" value="10 10 10 1 1 1"/>
     <param name="fix_first_node_adaptive" value="true"/>
     <!-- loop closure params -->
-    <param name="distance_thresh" value="15.0" />
+    <param name="distance_thresh" value="8.0" />
     <param name="accum_distance_thresh" value="25.0" />
     <param name="min_edge_interval" value="15.0" />
     <param name="fitness_score_thresh" value="2.5" />
