@@ -85,6 +85,8 @@ add_dependencies(floor_detection_nodelet ${PROJECT_NAME}_gencpp)
 add_library(scan_matching_odometry_nodelet
   apps/scan_matching_odometry_nodelet.cpp
   src/hdl_graph_slam/registrations.cpp
+        src/preprocess.cpp
+        include/ikd-Tree/ikd_Tree.cpp
 )
 target_link_libraries(scan_matching_odometry_nodelet
   ${catkin_LIBRARIES}
@@ -109,15 +111,6 @@ target_link_libraries(hdl_graph_slam_nodelet
 )
 add_dependencies(hdl_graph_slam_nodelet ${PROJECT_NAME}_gencpp)
 
-add_library(hdl_lio_nodelet
-        apps/front_lio_nodelet.cpp
-        src/preprocess.cpp
-        include/ikd-Tree/ikd_Tree.cpp
-        )
-link_libraries(hdl_lio_nodelet
-        ${catkin_LIBRARIES} ${PCL_LIBRARIES}
-        )
-
 catkin_install_python(
   PROGRAMS
     src/${PROJECT_NAME}/bag_player.py
@@ -135,7 +128,6 @@ install(TARGETS
   floor_detection_nodelet
   scan_matching_odometry_nodelet
   hdl_graph_slam_nodelet
-  hdl_lio_nodelet
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 
 install(DIRECTORY include/

@@ -109,7 +109,7 @@ private:
       return;
     }
 
-    src_cloud = deskewing(src_cloud);
+    // src_cloud = deskewing(src_cloud);
 
     // if base_link_frame is defined, transform the input cloud to the frame
     if(!base_link_frame.empty()) {
@@ -129,11 +129,11 @@ private:
       src_cloud = transformed;
     }
 
-    pcl::PointCloud<PointT>::ConstPtr filtered = distance_filter(src_cloud);
-    filtered = downsample(filtered);
-    filtered = outlier_removal(filtered);
+    // pcl::PointCloud<PointT>::ConstPtr filtered = distance_filter(src_cloud);
+   // filtered = downsample(filtered);
+    // filtered = outlier_removal(filtered);
 
-    points_pub.publish(*filtered);
+    points_pub.publish(*src_cloud);
   }
 
   pcl::PointCloud<PointT>::ConstPtr downsample(const pcl::PointCloud<PointT>::ConstPtr& cloud) const {

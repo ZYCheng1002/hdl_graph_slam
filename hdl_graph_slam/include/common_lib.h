@@ -159,7 +159,7 @@ T deg2rad(T degrees) {
 }
 
 template <typename T>
-auto set_pose6d(const double t,
+Pose6D set_pose6d(const double t,
                 const Matrix<T, 3, 1>& a,
                 const Matrix<T, 3, 1>& g,
                 const Matrix<T, 3, 1>& v,
