@@ -53,7 +53,7 @@ struct KeyFrame {
   g2o::VertexSE3* node;  // node instance
 
   bool degenerate = false;  //是否退化
-  Eigen::Matrix<double, 6, 6> cov  = Eigen::Matrix<double, 6, 6>::Identity();
+  Eigen::Matrix3d cov  = Eigen::Matrix3d::Identity();
 };
 
 /**

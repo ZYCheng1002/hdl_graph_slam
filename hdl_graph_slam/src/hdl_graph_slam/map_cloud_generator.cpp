@@ -6,11 +6,14 @@
 
 namespace hdl_graph_slam {
 
-MapCloudGenerator::MapCloudGenerator() {}
+MapCloudGenerator::MapCloudGenerator() {
+    voxel_filter.setLeafSize(0.1, 0.1, 0.1);
+
+}
 
 MapCloudGenerator::~MapCloudGenerator() {}
 
-pcl::PointCloud<MapCloudGenerator::PointT>::Ptr MapCloudGenerator::generate(const std::vector<KeyFrameSnapshot::Ptr>& keyframes, double resolution) const {
+pcl::PointCloud<MapCloudGenerator::PointT>::Ptr MapCloudGenerator::generate(const std::vector<KeyFrameSnapshot::Ptr>& keyframes, double resolution) {
   if(keyframes.empty()) {
     std::cerr << "warning: keyframes empty!!" << std::endl;
     return nullptr;
@@ -32,7 +35,8 @@ pcl::PointCloud<MapCloudGenerator::PointT>::Ptr MapCloudGenerator::generate(cons
   cloud->width = cloud->size();
   cloud->height = 1;
   cloud->is_dense = false;
-
+  voxel_filter.setInputCloud(cloud);
+  voxel_filter.filter(*cloud);
   if (resolution <=0.0)
     return cloud; // To get unfiltered point cloud with intensity
 

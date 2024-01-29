@@ -85,6 +85,11 @@ class LoopDetector {
     candidates.reserve(32);
 
     for (const auto& k : keyframes) {
+      /// 退化不做检测
+      if (k->degenerate) {
+        std::cout << "退化" << std::endl;
+        continue;
+      }
       /// 跳过累积距离过短的
       if (new_keyframe->accum_distance - k->accum_distance < accum_distance_thresh) {
         continue;

@@ -169,6 +169,8 @@ class HdlGraphSlamNodelet : public nodelet::Nodelet {
     double accum_d = keyframe_updater->get_accum_distance();
     /// 构建关键帧
     KeyFrame::Ptr keyframe(new KeyFrame(stamp, odom, accum_d, cloud));
+    /// 退化检测
+    DegenerateDetect(*keyframe);
     /// 添加关键帧时,防止其他线程正在flush,需要加锁
     std::lock_guard<std::mutex> lock(keyframe_queue_mutex);
     keyframe_queue.push_back(keyframe);

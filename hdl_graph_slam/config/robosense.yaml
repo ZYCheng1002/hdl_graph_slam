@@ -19,7 +19,7 @@ mapping:
   b_gyr_cov: 0.0001
   fov_degree:    180
   det_range:     100.0
-  extrinsic_est_en:  false      # 是否进行外参估计(imu-lidar)
+  extrinsic_est_en:  true      # 是否进行外参估计(imu-lidar)
   extrinsic_T: [ 0.09, 0, 1.24]
   extrinsic_R: [ 1, 0, 0,
                  0, 1, 0,
